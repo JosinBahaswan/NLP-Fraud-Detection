@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fraud Detector</title>
+  <style>
+    :root { --bg: #0f172a; --card: #0f172a; --panel: #111827; --text: #e5e7eb; --accent: #22d3ee; --muted: #94a3b8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at 20% 20%, #1e293b, #0f172a); color: var(--text); font-family: "Segoe UI", system-ui, -apple-system, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .shell { width: min(880px, 96vw); background: var(--panel); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 28px; box-shadow: 0 24px 70px rgba(0,0,0,0.35); }
+    h1 { margin: 0 0 6px; letter-spacing: 0.3px; }
+    p { margin: 0 0 18px; color: var(--muted); }
+    label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 14px; }
+    textarea { width: 100%; min-height: 160px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); color: var(--text); padding: 14px; font-size: 14px; resize: vertical; outline: none; }
+    textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15); }
+    .row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+    .row input { flex: 1; min-width: 240px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); padding: 10px 12px; background: rgba(255,255,255,0.02); color: var(--text); }
+    button { padding: 12px 18px; background: var(--accent); color: #0b1224; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s ease; }
+    button:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(34, 211, 238, 0.35); }
+    .result { margin-top: 16px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); min-height: 50px; display: flex; align-items: center; gap: 10px; }
+    .badge { display: inline-block; padding: 6px 10px; border-radius: 10px; font-weight: 700; }
+    .fraud { background: rgba(239, 68, 68, 0.18); color: #fecdd3; }
+    .safe { background: rgba(52, 211, 153, 0.2); color: #d1fae5; }
+    .muted { color: var(--muted); font-size: 13px; }
+    footer { margin-top: 14px; font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <h1>Deteksi Fraud</h1>
+    <p>Tempel teks pesan/transaksi lalu klik prediksi. API default: http://localhost:8000</p>
+
+    <label for="api">API URL (opsional)</label>
+    <div class="row">
+      <input id="api" value="http://localhost:8000" />
+      <button id="predictBtn">Prediksi</button>
+    </div>
+
+    <label for="text">Teks</label>
+    <textarea id="text" placeholder="Tulis teks di sini..."></textarea>
+
+    <div id="result" class="result muted">Belum ada prediksi.</div>
+    <footer>Tekan Ctrl+Enter untuk kirim.</footer>
+  </div>
+
+  <script>
+    const btn = document.getElementById('predictBtn');
+    const textarea = document.getElementById('text');
+    const resultBox = document.getElementById('result');
+    const apiInput = document.getElementById('api');
+
+    async function predict() {
+      const text = textarea.value.trim();
+      if (!text) {
+        resultBox.textContent = 'Teks tidak boleh kosong';
+        resultBox.className = 'result fraud';
+        return;
+      }
+
+      const base = apiInput.value.replace(/\/$/, '');
+      resultBox.textContent = 'Memproses...';
+      resultBox.className = 'result muted';
+
+      try {
+        const res = await fetch(`${base}/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+
+        if (!res.ok) {
+          let message = 'Gagal memproses';
+          try { const err = await res.json(); message = err.detail || message; } catch (_) {}
+          throw new Error(message);
+        }
+
+        const data = await res.json();
+        const badge = data.is_fraud ? '<span class="badge fraud">Fraud</span>' : '<span class="badge safe">Bukan Fraud</span>';
+        const prob = data.probability ? ` | Prob: ${(data.probability * 100).toFixed(1)}%` : '';
+        resultBox.innerHTML = `${badge} ${data.label}${prob}`;
+        resultBox.className = 'result';
+      } catch (err) {
+        resultBox.textContent = err.message;
+        resultBox.className = 'result fraud';
+      }
+    }
+
+    btn.addEventListener('click', predict);
+    textarea.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') predict();
+    });
+  </script>
+</body>
+</html>

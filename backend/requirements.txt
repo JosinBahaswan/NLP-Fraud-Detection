@@ -2,5 +2,5 @@ fastapi==0.109.0
 uvicorn
 pydantic
 joblib
-scikit-learn
+scikit-learn>=1.6.0
 python-multipart
